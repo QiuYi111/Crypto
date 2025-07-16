@@ -31,7 +31,9 @@
       "Bash(PYTHONPATH=/home/jingyi/Crypto python -c \"\nimport requests\nimport time\nimport hashlib\nimport hmac\nfrom src.cryptorl.config.settings import Settings\n\nsettings = Settings()\n\n# Test with mainnet\nbase_url = ''https://fapi.binance.com''  # Mainnet futures\ntimestamp = str(int(time.time() * 1000))\n\n# Test account endpoint\nendpoint = ''/fapi/v2/account''\nquery_string = f''timestamp={timestamp}''\nsignature = hmac.new(\n    settings.binance_secret_key.encode(''utf-8''),\n    query_string.encode(''utf-8''),\n    hashlib.sha256\n).hexdigest()\n\nurl = f''{base_url}{endpoint}?{query_string}&signature={signature}''\nheaders = {''X-MBX-APIKEY'': settings.binance_api_key}\n\ntry:\n    response = requests.get(url, headers=headers, timeout=10)\n    print(''Mainnet account test:'', response.status_code)\n    if response.status_code == 200:\n        data = response.json()\n        print(''✅ Mainnet account access successful!'')\n        print(''Total balance:'', data.get(''totalWalletBalance'', ''N/A''))\n    elif response.status_code == 401:\n        print(''❌ Invalid API keys or permissions'')\n        print(''Response:'', response.text)\n    else:\n        print(''❌ Error:'', response.text)\nexcept Exception as e:\n    print(''Request error:'', e)\n\")",
       "Bash(ping:*)",
       "Bash(docker:*)",
-      "Bash(. .venv/bin/activate)"
+      "Bash(. .venv/bin/activate)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(touch:*)"
     ],
     "deny": []
   }

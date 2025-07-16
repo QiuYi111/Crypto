@@ -26,6 +26,7 @@ dependencies = [
     "httpx>=0.24.0",
     # Binance API
     "python-binance>=1.0.19",
+    "websockets>=11.0.0",
     # Machine Learning & RL
     "torch>=2.0.0",
     "gymnasium>=0.29.0",
@@ -38,7 +39,9 @@ dependencies = [
     "peft>=0.6.0",
     "bitsandbytes>=0.41.0",
     # Search APIs
-    "google-search-results>=2.4.2",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=4.9.0",
+    "html5lib>=1.1",
     # Monitoring & Visualization
     "streamlit>=1.28.0",
     "plotly>=5.17.0",
@@ -64,7 +67,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.18.0", "setuptools>=68.0.0", "wheel>=0.41.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

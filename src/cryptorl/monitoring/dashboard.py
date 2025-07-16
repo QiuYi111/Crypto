@@ -13,10 +13,10 @@ import json
 from pathlib import Path
 import logging
 
-from ..backtesting.engine import BacktestingEngine, BacktestResult
-from ..risk_management.risk_manager import RiskManager, RiskLevel
-from ..trading.execution import BinanceTrader
-from ..config.settings import Settings
+from cryptorl.backtesting.engine import BacktestingEngine, BacktestResult
+from cryptorl.risk_management.risk_manager import RiskManager, RiskLevel
+from cryptorl.trading.execution import BinanceTrader
+from cryptorl.config.settings import Settings
 
 
 class MonitoringDashboard:
@@ -41,12 +41,19 @@ class MonitoringDashboard:
     def run_dashboard(self):
         """Run the Streamlit dashboard."""
         
-        st.set_page_config(
-            page_title="CryptoRL Monitoring Dashboard",
-            page_icon="📊",
-            layout="wide",
-            initial_sidebar_state="expanded"
-        )
+        try:
+            st.set_page_config(
+                page_title="CryptoRL Monitoring Dashboard",
+                page_icon="📊",
+                layout="wide",
+                initial_sidebar_state="expanded"
+            )
+        except Exception as e:
+            # Fallback for testing
+            st.set_page_config(
+                page_title="CryptoRL Dashboard",
+                layout="wide"
+            )
         
         # Custom CSS
         st.markdown("""
@@ -637,7 +644,10 @@ def launch_dashboard(settings: Settings):
 
 
 if __name__ == "__main__":
-    from ..config.settings import Settings
+    import sys
+    sys.path.insert(0, './src')
+    
+    from cryptorl.config.settings import Settings
     
     settings = Settings()
     launch_dashboard(settings)
