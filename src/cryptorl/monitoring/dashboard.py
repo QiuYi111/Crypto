@@ -36,7 +36,7 @@ class MonitoringDashboard:
         self.performance_metrics = {}
         
         # Dashboard configuration
-        self.update_interval = settings.dashboard_update_interval
+        self.update_interval = 5  # Default 5 second update interval
         
     def run_dashboard(self):
         """Run the Streamlit dashboard."""
@@ -459,7 +459,15 @@ class MonitoringDashboard:
             }
         ]
         
-        return pd.DataFrame(positions)
+        df = pd.DataFrame(positions)
+        # Ensure numeric types
+        df['quantity'] = pd.to_numeric(df['quantity'])
+        df['entry_price'] = pd.to_numeric(df['entry_price'])
+        df['current_price'] = pd.to_numeric(df['current_price'])
+        df['current_value'] = pd.to_numeric(df['current_value'])
+        df['unrealized_pnl'] = pd.to_numeric(df['unrealized_pnl'])
+        df['pnl_percentage'] = pd.to_numeric(df['pnl_percentage'])
+        return df
     
     def _get_recent_trades(self) -> pd.DataFrame:
         """Get recent trades."""
@@ -486,7 +494,13 @@ class MonitoringDashboard:
             }
         ]
         
-        return pd.DataFrame(trades)
+        df = pd.DataFrame(trades)
+        # Ensure numeric types and datetime
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df['quantity'] = pd.to_numeric(df['quantity'])
+        df['price'] = pd.to_numeric(df['price'])
+        df['pnl'] = pd.to_numeric(df['pnl'])
+        return df
     
     def _generate_mock_price_data(self, symbol: str) -> pd.DataFrame:
         """Generate mock price data."""
@@ -566,23 +580,23 @@ class MonitoringDashboard:
             },
             {
                 'Metric': 'Win Rate',
-                'Value': '68.5%'
+                'Value': 68.5
             },
             {
                 'Metric': 'Average Win',
-                'Value': '$245.50'
+                'Value': 245.50
             },
             {
                 'Metric': 'Average Loss',
-                'Value': '$-89.20'
+                'Value': -89.20
             },
             {
                 'Metric': 'Profit Factor',
-                'Value': '2.75'
+                'Value': 2.75
             },
             {
                 'Metric': 'Average Hold Time',
-                'Value': '2.3 days'
+                'Value': 2.3
             }
         ]
         
@@ -606,7 +620,10 @@ class MonitoringDashboard:
             }
         ]
         
-        return pd.DataFrame(events)
+        df = pd.DataFrame(events)
+        # Ensure timestamp column is datetime type for compatibility
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        return df
     
     def _get_system_logs(self, level: str, date: datetime) -> List[str]:
         """Get system logs."""
