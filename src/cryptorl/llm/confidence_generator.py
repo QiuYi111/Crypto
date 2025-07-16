@@ -54,7 +54,7 @@ class ConfidenceVectorGenerator:
             news_articles = await self.rag_pipeline.search_news(
                 symbol=symbol,
                 date=date,
-                max_results=self.settings.llm.max_news_articles
+                max_results=self.settings.llm_max_news_articles
             )
             
             if not news_articles:
@@ -239,6 +239,54 @@ class ConfidenceVectorGenerator:
             logger.error(f"Error getting confidence history: {e}")
             return []
     
+    async def generate_for_period(
+        self,
+        symbol: str,
+        start_date: datetime,
+        end_date: datetime,
+        market_context: Optional[pd.DataFrame] = None
+    ) -> Optional[pd.DataFrame]:
+        """Generate confidence vectors for a specific period and return as DataFrame."""
+        try:
+            # Generate confidence vectors for the entire period
+            vectors = await self.batch_generate_historical(
+                symbols=[symbol],
+                start_date=start_date,
+                end_date=end_date
+            )
+            
+            if not vectors:
+                logger.warning(f"No confidence vectors generated for {symbol} between {start_date} and {end_date}")
+                return None
+            
+            # Convert to DataFrame
+            data = []
+            for vector in vectors:
+                data.append({
+                    'date': vector.date,
+                    'fundamentals': vector.fundamentals,
+                    'industry_condition': vector.industry_condition,
+                    'geopolitics': vector.geopolitics,
+                    'macroeconomics': vector.macroeconomics,
+                    'technical_sentiment': vector.technical_sentiment,
+                    'regulatory_impact': vector.regulatory_impact,
+                    'innovation_impact': vector.innovation_impact,
+                    'confidence_score': vector.confidence_score,
+                    'reasoning': vector.reasoning,
+                    'news_sources': ','.join(vector.news_sources)
+                })
+            
+            df = pd.DataFrame(data)
+            df.set_index('date', inplace=True)
+            df.sort_index(inplace=True)
+            
+            logger.info(f"Generated {len(df)} confidence vectors for {symbol}")
+            return df
+            
+        except Exception as e:
+            logger.error(f"Error generating confidence vectors for period: {e}")
+            return None
+
     async def health_check(self) -> Dict[str, Any]:
         """Check system health."""
         try:

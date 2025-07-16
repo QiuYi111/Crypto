@@ -41,27 +41,36 @@ class RAGPipeline:
             max_results=max_results
         )
         
-        # Try multiple search sources
+        # Try multiple search sources in priority order
         articles = []
         
-        # DuckDuckGo search (China-compatible)
-        duckduckgo_articles = await self._search_duckduckgo(query)
-        articles.extend(duckduckgo_articles)
-        
-        # Baidu Search (China-specific)
-        if self.baidu_api_key:
-            baidu_articles = await self._search_baidu(query)
-            articles.extend(baidu_articles)
-        
-        # SerpAPI search (fallback)
-        if self.serpapi_key and not articles:
+        # SerpAPI search (primary choice)
+        if self.serpapi_key:
             serp_articles = await self._search_serpapi(query)
             articles.extend(serp_articles)
+            if serp_articles:
+                logger.info(f"Found {len(serp_articles)} articles via SerpAPI")
         
-        # Google Custom Search (fallback)
+        # Google Custom Search (secondary choice)
         if self.google_search_key and self.google_search_cx and not articles:
             google_articles = await self._search_google(query)
             articles.extend(google_articles)
+            if google_articles:
+                logger.info(f"Found {len(google_articles)} articles via Google Search")
+        
+        # DuckDuckGo search (China-compatible fallback)
+        if not articles:
+            duckduckgo_articles = await self._search_duckduckgo(query)
+            articles.extend(duckduckgo_articles)
+            if duckduckgo_articles:
+                logger.info(f"Found {len(duckduckgo_articles)} articles via DuckDuckGo")
+        
+        # Baidu Search (China-specific final fallback)
+        if self.baidu_api_key and not articles:
+            baidu_articles = await self._search_baidu(query)
+            articles.extend(baidu_articles)
+            if baidu_articles:
+                logger.info(f"Found {len(baidu_articles)} articles via Baidu")
         
         # Deduplicate by URL
         seen_urls = set()
@@ -103,7 +112,14 @@ class RAGPipeline:
                 "tbs": f"cdr:1,cd_min:{date_start.strftime('%m/%d/%Y')},cd_max:{date_end.strftime('%m/%d/%Y')}"
             }
             
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Accept-Encoding": "gzip, deflate",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1"
+            }) as client:
                 response = await client.get(search_url, params=params)
                 response.raise_for_status()
                 
@@ -125,6 +141,7 @@ class RAGPipeline:
                 
         except Exception as e:
             logger.error(f"SerpAPI search failed: {e}")
+            logger.debug(f"Query: {query.to_search_string()}, Date: {query.date}")
             return []
     
     async def _search_google(self, query: SearchQuery) -> List[NewsArticle]:
@@ -146,7 +163,14 @@ class RAGPipeline:
                 "siteSearch": "coindesk.com,cointelegraph.com,decrypt.co,blockworks.co"
             }
             
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Accept-Encoding": "gzip, deflate",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1"
+            }) as client:
                 response = await client.get(search_url, params=params)
                 response.raise_for_status()
                 
@@ -281,7 +305,14 @@ class RAGPipeline:
                 "t": "cryptorl-agent"
             }
             
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Accept-Encoding": "gzip, deflate",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1"
+            }) as client:
                 response = await client.get(search_url, params=params)
                 response.raise_for_status()
                 
@@ -329,7 +360,14 @@ class RAGPipeline:
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
             }
             
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Accept-Encoding": "gzip, deflate",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1"
+            }) as client:
                 response = await client.get(search_url, params=params, headers=headers)
                 response.raise_for_status()
                 
@@ -382,7 +420,14 @@ class RAGPipeline:
                 "siteSearch": "baidu.com"
             }
             
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Accept-Encoding": "gzip, deflate",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1"
+            }) as client:
                 response = await client.get(search_url, params=params)
                 response.raise_for_status()
                 

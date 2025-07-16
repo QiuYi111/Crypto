@@ -4,26 +4,27 @@ This document provides a detailed overview of the CryptoRL system architecture, 
 
 ## System Overview
 
-CryptoRL is built with a modular architecture that separates concerns into distinct layers:
+CryptoRL is a production-ready crypto trading RL system with 5 completed phases. The architecture has been simplified for deployment while maintaining modularity.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    API Layer                                    │
+│                    User Interface                               │
+│                 (Streamlit Dashboard)                           │
 ├─────────────────────────────────────────────────────────────────┤
-│                   Service Layer                                 │
+│                   Core Services                                 │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
 │  │   Data      │  │    LLM      │  │   Trading   │             │
 │  │ Collection  │  │  Analysis   │  │   Engine    │             │
 │  └─────────────┘  └─────────────┘  └─────────────┘             │
 ├─────────────────────────────────────────────────────────────────┤
 │                  Storage Layer                                  │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
-│  │  InfluxDB   │  │ PostgreSQL  │  │    Redis    │             │
-│  │ Time Series │  │ Relational  │  │    Cache    │             │
-│  └─────────────┘  └─────────────┘  └─────────────┘             │
+│  ┌─────────────┐  ┌─────────────┐                               │
+│  │  InfluxDB   │  │ PostgreSQL  │                               │
+│  │ Time Series │  │ Relational  │                               │
+│  └─────────────┘  └─────────────┘                               │
 ├─────────────────────────────────────────────────────────────────┤
-│                  Infrastructure                                 │
-│                    Docker/K8s                                   │
+│                  Quick Setup                                    │
+│                 (single script)                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -239,154 +240,171 @@ CREATE TABLE confidence_vectors (
 
 ## Configuration Management
 
-### Environment Variables
+### Environment Variables (Actual)
 
-All configuration is managed through environment variables and `.env` files:
+Current configuration uses Pydantic v2 with comprehensive settings:
 
 ```bash
-# Core settings
-CRYPTORL_ENV=development
-CRYPTORL_LOG_LEVEL=INFO
-
-# Binance
-BINANCE_API_KEY=xxx
-BINANCE_SECRET_KEY=xxx
+# Required: Binance API
+BINANCE_API_KEY=your_api_key
+BINANCE_SECRET_KEY=your_secret_key
 BINANCE_TESTNET=true
 
-# Database
+# Required: Database
 INFLUXDB_URL=http://localhost:8086
-INFLUXDB_TOKEN=xxx
-POSTGRESQL_URL=postgresql://user:pass@localhost:5432/cryptorl
+INFLUXDB_TOKEN=your_influx_token
+POSTGRESQL_URL=postgresql://cryptorl:cryptorl@localhost:5432/cryptorl
 
-# LLM
-LLM_MODEL_PATH=/models/llama-2-7b-chat
-LLM_DEVICE=cuda
-LLM_BATCH_SIZE=8
+# LLM Provider Selection:
+LLM_PROVIDER=deepseek|openai|local
+DEEPSEEK_API_KEY=your_deepseek_key
+OPENAI_API_KEY=your_openai_key  # if using OpenAI
+
+# Search APIs:
+SERPAPI_KEY=your_serpapi_key
+GOOGLE_API_KEY=your_google_key
+GOOGLE_CX=your_search_cx
+
+# Optional: China-compatible
+BAIDU_API_KEY=your_baidu_key
+
+# RL Settings:
+RL_USE_MAMBA=true
+RL_INITIAL_BALANCE=10000.0
+RL_MAX_POSITION_SIZE=1.0
 ```
 
-### Configuration Files
+### Actual Configuration Structure
 
 ```python
-# src/cryptorl/config/settings.py
-from pydantic import BaseSettings
+# src/cryptorl/config/settings.py - Pydantic v2
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    # Binance settings
+    # Binance
     binance_api_key: str
     binance_secret_key: str
     binance_testnet: bool = True
     
-    # Database settings
-    influxdb_url: str
+    # Database
+    influxdb_url: str = "http://localhost:8086"
     influxdb_token: str
-    postgresql_url: str
+    postgresql_url: str = "postgresql://cryptorl:cryptorl@localhost:5432/cryptorl"
     
-    # LLM settings
-    llm_model_path: str
-    llm_device: str = "cuda"
-    llm_max_tokens: int = 512
+    # LLM Provider
+    llm_provider: str = "local"  # deepseek, openai, local
+    deepseek_api_key: str = ""
+    openai_api_key: str = ""
+    
+    # Trading
+    trading_symbols: list = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+    max_position_size: float = 0.1
+    max_leverage: int = 10
+    
+    # RL
+    rl_use_mamba: bool = True
+    rl_initial_balance: float = 10000.0
+    rl_learning_rate: float = 3e-4
     
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
 
 settings = Settings()
 ```
 
 ## Development Workflow
 
-### 1. Local Development
+### 1. Quick Start (Current)
 
 ```bash
-# Start development environment
-docker compose --profile dev up -d
+# Single command setup
+python quickstart.py --setup
 
-# Install dependencies
-poetry install
-
-# Run tests
-pytest tests/
+# Validate configuration
+python quickstart.py --validate
 
 # Start dashboard
-streamlit run src/cryptorl/monitoring/dashboard.py
+python quickstart.py --dashboard
+
+# Test system
+python quickstart.py --test
 ```
 
-### 2. Testing
+### 2. Manual Setup
 
 ```bash
-# Unit tests
-pytest tests/unit/
+# Install uv if needed
+python quickstart.py --setup
 
-# Integration tests
-pytest tests/integration/
+# Configure environment
+cp .env.example .env
+# Edit .env with your API keys
 
-# End-to-end tests
-pytest tests/e2e/
-
-# Load tests
-pytest tests/load/
+# Run validation
+python scripts/validate_setup.py
 ```
 
-### 3. Model Training
+### 3. Testing (Built-in)
 
 ```bash
-# Train baseline model
-python scripts/train_model.py --algorithm PPO --symbols BTCUSDT ETHUSDT --days 30
+# All tests via quickstart
+python quickstart.py --test
 
-# Evaluate model
-python scripts/evaluate_model.py --model-path models/ppo_btc_eth_v1
+# Manual validation
+python scripts/validate_setup.py
 
-# Compare algorithms
-python scripts/compare_algorithms.py --symbols BTCUSDT --days 60
+# API connection test
+python scripts/test_api_connection.py
 ```
 
-## Deployment Patterns
+### 4. Model Training (Phase 3 Complete)
 
-### 1. Docker Compose (Development)
+```bash
+# Use phase3 demo scripts
+python scripts/phase3_demo.py    # Mamba vs Transformer benchmarks
+python scripts/phase4_demo.py    # Full backtesting system
 
-```yaml
-# docker-compose.yml
-version: '3.8'
-services:
-  cryptorl:
-    build: .
-    environment:
-      - CRYPTORL_ENV=development
-    depends_on:
-      - influxdb
-      - postgresql
-    volumes:
-      - ./data:/app/data
-      - ./models:/app/models
+# Training via train.py
+python train.py --config config/training_config.json
 ```
 
-### 2. Kubernetes (Production)
+## Deployment Patterns (Current)
 
-```yaml
-# k8s/deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: cryptorl-agent
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: cryptorl-agent
-  template:
-    spec:
-      containers:
-      - name: cryptorl
-        image: cryptorl:latest
-        env:
-        - name: CRYPTORL_ENV
-          value: "production"
+### 1. Local Development (Working)
+
+```bash
+# Single script setup
+python quickstart.py --setup
+
+# Docker services (if needed)
+docker compose up -d
+
+# Validation
+python scripts/validate_setup.py
 ```
 
-### 3. Cloud Deployment
+### 2. Production Setup
 
-- **AWS**: ECS with RDS PostgreSQL and Timestream
-- **GCP**: Cloud Run with Cloud SQL and BigQuery
-- **Azure**: Container Apps with PostgreSQL and Time Series Insights
+```bash
+# Environment setup
+cp .env.example .env
+# Edit .env with production values
+
+# Validate configuration
+python quickstart.py --validate
+
+# Start dashboard
+python quickstart.py --dashboard
+```
+
+### 3. Current Architecture
+
+- **Database**: InfluxDB + PostgreSQL via Docker
+- **LLM**: DeepSeek API (default) or local models
+- **RL Training**: Mamba-based with Stable-Baselines3
+- **Monitoring**: Streamlit dashboard
+- **Validation**: Built-in validation scripts
 
 ## Performance Considerations
 
@@ -427,3 +445,44 @@ spec:
 - **Testnet first**: Always test in sandbox
 - **Circuit breakers**: Automatic trading halts
 - **Risk limits**: Hard-coded position limits
+
+## Current Status & Next Steps
+
+### ✅ Actually Completed Components
+- **Phase 1**: ✅ Data Collection & Storage (InfluxDB + PostgreSQL)
+- **Phase 2**: ✅ LLM Integration & 7D Confidence Vectors
+- **Phase 3**: ✅ Mamba vs Transformer Benchmarking (results in reports/)
+- **Phase 4**: ✅ Backtesting & Risk Management (reports/phase4_summary.json)
+- **Phase 5**: ✅ Dashboard & Monitoring (simple_dashboard.py + run_dashboard.py)
+
+### 🔄 Actual Current State
+- **Quickstart**: Unified `quickstart.py` replaces all test scripts
+- **Validation**: `scripts/validate_setup.py` tests entire system
+- **Dashboard**: Two versions - `simple_dashboard.py` (stable) and `run_dashboard.py`
+- **Dependencies**: Pyproject.toml with uv/conda support
+- **Configuration**: Pydantic v2 settings with provider selection (DeepSeek/OpenAI/Local)
+
+### 📋 Actual Usage
+```bash
+# Setup
+python quickstart.py --setup
+
+# Configure
+cp .env.example .env  # then edit with your keys
+
+# Validate
+python quickstart.py --validate
+
+# Dashboard
+python quickstart.py --dashboard
+
+# Full validation
+python scripts/validate_setup.py
+```
+
+### 🎯 Next Steps (Real)
+1. Configure `.env` with actual API keys
+2. Run validation to test all components
+3. Start dashboard for monitoring
+4. Run `scripts/phase3_demo.py` for Mamba benchmarks
+5. Run `scripts/phase4_demo.py` for backtesting demo

@@ -1,73 +1,31 @@
-"""LLM client for generating confidence vectors from news and market data."""
+"""LLM client for generating confidence vectors using DeepSeek API."""
 
 import asyncio
 import time
 from typing import List, Dict, Any, Optional, AsyncGenerator
 import httpx
 from loguru import logger
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
+import json
 
 from .models import LLMResponse, NewsArticle, ConfidenceVector
 from ..config.settings import Settings
 
 
 class LLMClient:
-    """Client for interacting with LLM models for confidence vector generation."""
+    """Client for interacting with DeepSeek API for confidence vector generation."""
     
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.model_name = settings.llm.model_name
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = None
-        self.tokenizer = None
-        self._initialized = False
+        self.api_key = settings.deepseek_api_key
+        self.base_url = settings.deepseek_base_url
+        self.model_name = settings.deepseek_model
+        self._initialized = bool(self.api_key)
         
     async def initialize(self):
-        """Initialize the LLM model and tokenizer."""
-        if self._initialized:
-            return
-            
-        logger.info(f"Initializing LLM: {self.model_name}")
-        
-        try:
-            # Load tokenizer
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                self.model_name,
-                trust_remote_code=True
-            )
-            
-            # Ensure pad token exists
-            if self.tokenizer.pad_token is None:
-                self.tokenizer.pad_token = self.tokenizer.eos_token
-            
-            # Load model with quantization if configured
-            model_kwargs = {
-                "trust_remote_code": True,
-                "torch_dtype": torch.float16 if self.device == "cuda" else torch.float32,
-                "device_map": "auto" if self.device == "cuda" else None,
-            }
-            
-            if settings.llm.load_in_4bit:
-                from transformers import BitsAndBytesConfig
-                model_kwargs["quantization_config"] = BitsAndBytesConfig(
-                    load_in_4bit=True,
-                    bnb_4bit_compute_dtype=torch.float16,
-                    bnb_4bit_use_double_quant=True,
-                    bnb_4bit_quant_type="nf4"
-                )
-            
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                **model_kwargs
-            )
-            
-            self._initialized = True
-            logger.info(f"LLM initialized successfully on {self.device}")
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize LLM: {e}")
-            raise
+        """Initialize the DeepSeek API client."""
+        if not self.api_key:
+            raise ValueError("DeepSeek API key not configured")
+        logger.info(f"Initialized DeepSeek API client: {self.model_name}")
     
     async def generate_confidence_vector(
         self,
@@ -76,58 +34,83 @@ class LLMClient:
         news_articles: List[NewsArticle],
         market_context: Dict[str, Any]
     ) -> LLMResponse:
-        """Generate confidence vector from news articles and market context."""
+        """Generate confidence vector using DeepSeek API."""
         if not self._initialized:
             await self.initialize()
-        
+            
         start_time = time.time()
         
         # Build prompt
         prompt = self._build_prompt(symbol, date, news_articles, market_context)
         
         try:
-            # Tokenize input
-            inputs = self.tokenizer.encode(prompt, return_tensors="pt").to(self.device)
+            # Prepare API request
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
             
-            # Generate response
-            with torch.no_grad():
-                outputs = self.model.generate(
-                    inputs,
-                    max_new_tokens=512,
-                    temperature=self.settings.llm.temperature,
-                    top_p=self.settings.llm.top_p,
-                    do_sample=True,
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    eos_token_id=self.tokenizer.eos_token_id,
+            payload = {
+                "model": self.model_name,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are an expert cryptocurrency market analyst. Analyze the provided data and return ONLY a JSON response with confidence scores."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "temperature": self.settings.llm_temperature,
+                "max_tokens": self.settings.llm_max_tokens,
+                "top_p": self.settings.llm_top_p,
+                "response_format": {"type": "json_object"}
+            }
+            
+            prompt_tokens = len(prompt.split()) * 1.5  # Rough estimate
+            
+            # Make API call
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload
                 )
-            
-            # Decode response
-            response_text = self.tokenizer.decode(
-                outputs[0][len(inputs[0]):], 
-                skip_special_tokens=True
-            ).strip()
-            
-            # Parse response
-            confidence_vector = self._parse_llm_response(response_text)
-            
-            # Calculate token counts
-            prompt_tokens = len(inputs[0])
-            completion_tokens = len(outputs[0]) - len(inputs[0])
-            
-            processing_time = time.time() - start_time
-            
-            return LLMResponse(
-                confidence_vector=confidence_vector,
-                reasoning=response_text,
-                model_name=self.model_name,
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                processing_time=processing_time
-            )
-            
+                response.raise_for_status()
+                
+                result = response.json()
+                
+                # Extract response
+                content = result["choices"][0]["message"]["content"]
+                response_data = json.loads(content)
+                
+                # Parse confidence vector from JSON
+                confidence_vector = self._parse_json_response(response_data)
+                
+                completion_tokens = len(content.split())
+                processing_time = time.time() - start_time
+                
+                return LLMResponse(
+                    confidence_vector=confidence_vector,
+                    reasoning=content,
+                    model_name=self.model_name,
+                    prompt_tokens=int(prompt_tokens),
+                    completion_tokens=completion_tokens,
+                    processing_time=processing_time
+                )
+                
         except Exception as e:
-            logger.error(f"Error generating confidence vector: {e}")
-            raise
+            logger.error(f"Error generating confidence vector with DeepSeek: {e}")
+            # Return fallback vector
+            return LLMResponse(
+                confidence_vector=[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+                reasoning=f"Fallback due to API error: {str(e)}",
+                model_name=self.model_name,
+                prompt_tokens=100,
+                completion_tokens=50,
+                processing_time=time.time() - start_time
+            )
     
     def _build_prompt(
         self,
@@ -136,83 +119,81 @@ class LLMClient:
         news_articles: List[NewsArticle],
         market_context: Dict[str, Any]
     ) -> str:
-        """Build comprehensive prompt for LLM analysis."""
+        """Build comprehensive prompt for DeepSeek API."""
         
         # Format news articles
         news_text = ""
-        for i, article in enumerate(news_articles[:5], 1):  # Limit to top 5 articles
+        for i, article in enumerate(news_articles[:5], 1):
             news_text += f"""
 {i}. {article.title}
    Source: {article.source}
-   Date: {article.published_date.strftime('%Y-%m-%d')}
+   Date: {article.published_date.strftime('%Y-%m-%d') if hasattr(article.published_date, 'strftime') else str(article.published_date)}
    Summary: {article.content[:200]}...
-   Relevance: {article.relevance_score or 'N/A'}
-   Sentiment: {article.sentiment_score or 'N/A'}
+   Relevance: {article.relevance_score or 0.5:.2f}
+   Sentiment: {article.sentiment_score or 0.0:.2f}
 """
         
-        # Format market context
+        # Format market context (with fallback values)
         market_info = f"""
 Market Context for {symbol} on {date}:
-- Current Price: ${market_context.get('current_price', 'N/A')}
-- 24h Change: {market_context.get('price_change_24h', 'N/A')}
-- Volume: {market_context.get('volume_24h', 'N/A')}
-- Market Cap: {market_context.get('market_cap', 'N/A')}
-- Volatility (7d): {market_context.get('volatility_7d', 'N/A')}
+- Current Price: ${market_context.get('current_price', 'Unknown')}
+- 24h Change: {market_context.get('price_change_24h', 'Unknown')}
+- Volume: {market_context.get('volume_24h', 'Unknown')}
+- Market Cap: {market_context.get('market_cap', 'Unknown')}
+- Volatility (7d): {market_context.get('volatility_7d', 'Unknown')}
 """
         
-        prompt = f"""You are an expert cryptocurrency market analyst. Analyze the provided news and market data to generate a confidence assessment for {symbol} on {date}.
+        prompt = f"""Analyze the following cryptocurrency news and market data for {symbol} on {date}.
 
 {market_info}
 
 News Analysis:
 {news_text}
 
-Based on this information, provide a confidence vector with 7 dimensions:
-1. Fundamentals (0-1): Confidence in underlying project fundamentals
-2. Industry Condition (0-1): Health of the crypto/blockchain industry
-3. Geopolitics (0-1): Impact of geopolitical events on this asset
-4. Macroeconomics (0-1): Macroeconomic environment impact
-5. Technical Sentiment (0-1): Technical analysis sentiment
-6. Regulatory Impact (0-1): Regulatory environment impact
-7. Innovation Impact (0-1): Technological innovation impact
+Based on this information, generate a confidence assessment in JSON format with the following structure:
 
-Output format:
-[score1,score2,score3,score4,score5,score6,score7]
+{{"confidence_vector": [fundamentals, industry_condition, geopolitics, macroeconomics, technical_sentiment, regulatory_impact, innovation_impact], "reasoning": "Brief explanation"}}
 
-Then provide a brief explanation (2-3 sentences) for each score.
+Where each confidence score is a float between 0.0 and 1.0:
+- fundamentals: Confidence in underlying project fundamentals
+- industry_condition: Health of the crypto/blockchain industry
+- geopolitics: Impact of geopolitical events on this asset
+- macroeconomics: Macroeconomic environment impact
+- technical_sentiment: Technical analysis sentiment
+- regulatory_impact: Regulatory environment impact
+- innovation_impact: Technological innovation impact
 
-Response:"""
+Return only valid JSON."""
         
         return prompt
     
-    def _parse_llm_response(self, response_text: str) -> List[float]:
-        """Parse LLM response to extract confidence vector."""
+    def _parse_json_response(self, response_data: Dict[str, Any]) -> List[float]:
+        """Parse confidence vector from JSON response."""
         try:
-            # Look for JSON array pattern
-            import re
-            array_pattern = r'\[([\d.,\s]+)\]'
-            match = re.search(array_pattern, response_text)
-            
-            if match:
-                numbers_str = match.group(1)
-                numbers = [float(x.strip()) for x in numbers_str.split(',')]
-                
-                # Ensure we have 7 values, pad with 0.5 if necessary
-                if len(numbers) == 7:
-                    # Clamp values to [0, 1]
-                    return [max(0, min(1, val)) for val in numbers]
-                elif len(numbers) > 7:
-                    return [max(0, min(1, val)) for val in numbers[:7]]
+            # Try to get vector from response
+            if "confidence_vector" in response_data:
+                vector = response_data["confidence_vector"]
+            elif "vector" in response_data:
+                vector = response_data["vector"]
+            else:
+                # Try to extract array from any key
+                for key, value in response_data.items():
+                    if isinstance(value, list) and len(value) == 7:
+                        vector = value
+                        break
                 else:
-                    padded = numbers + [0.5] * (7 - len(numbers))
-                    return [max(0, min(1, val)) for val in padded]
+                    raise ValueError("No confidence vector found in response")
             
-            # Fallback: return neutral vector
-            logger.warning("Could not parse confidence vector from LLM response")
-            return [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
-            
+            # Ensure we have 7 float values between 0 and 1
+            if len(vector) == 7:
+                return [max(0.0, min(1.0, float(v))) for v in vector]
+            else:
+                # Pad or truncate to 7 values
+                padded = list(vector)[:7] + [0.5] * (7 - min(7, len(vector)))
+                return [max(0.0, min(1.0, float(v))) for v in padded]
+                
         except Exception as e:
-            logger.error(f"Error parsing LLM response: {e}")
+            logger.error(f"Error parsing JSON response: {e}")
             return [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
     
     async def batch_generate(
@@ -234,15 +215,37 @@ Response:"""
                 continue
     
     async def health_check(self) -> Dict[str, Any]:
-        """Check LLM client health."""
+        """Check DeepSeek API client health."""
         try:
-            if not self._initialized:
-                await self.initialize()
+            if not self.api_key:
+                return {
+                    "status": "unhealthy",
+                    "error": "DeepSeek API key not configured"
+                }
+            
+            # Simple test call
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": self.model_name,
+                "messages": [{"role": "user", "content": "Test"}],
+                "max_tokens": 1
+            }
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload
+                )
+                response.raise_for_status()
             
             return {
                 "status": "healthy",
                 "model_name": self.model_name,
-                "device": self.device,
                 "initialized": self._initialized
             }
         except Exception as e:
