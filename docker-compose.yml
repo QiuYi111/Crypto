@@ -1,0 +1,150 @@
+version: '3.8'
+
+services:
+  # Core application
+  cryptorl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cryptorl
+    restart: unless-stopped
+    depends_on:
+      - influxdb
+      - postgresql
+      - redis
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./config:/app/config
+    environment:
+      - PYTHONPATH=/app/src
+    env_file:
+      - .env
+    networks:
+      - cryptorl-network
+
+  # Time-series database
+  influxdb:
+    image: influxdb:2.7
+    container_name: cryptorl-influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=cryptorl_admin_2024
+      - DOCKER_INFLUXDB_INIT_ORG=cryptorl
+      - DOCKER_INFLUXDB_INIT_BUCKET=market_data
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=cryptorl_token_2024
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    networks:
+      - cryptorl-network
+
+  # Relational database
+  postgresql:
+    image: postgres:15-alpine
+    container_name: cryptorl-postgresql
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=cryptorl
+      - POSTGRES_USER=cryptorl
+      - POSTGRES_PASSWORD=cryptorl
+    volumes:
+      - postgresql-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - cryptorl-network
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: cryptorl-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - cryptorl-network
+
+  # LLM Service (separate container for large models)
+  llm-service:
+    build:
+      context: ./docker/llm
+      dockerfile: Dockerfile
+    container_name: cryptorl-llm
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+      - ./config:/app/config
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - cryptorl-network
+    profiles:
+      - llm
+
+  # Streamlit dashboard
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cryptorl-dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+    environment:
+      - PYTHONPATH=/app/src
+      - STREAMLIT_SERVER_PORT=8501
+    command: streamlit run src/cryptorl/monitoring/dashboard.py
+    networks:
+      - cryptorl-network
+    profiles:
+      - dashboard
+
+  # Jupyter notebook for development
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cryptorl-jupyter
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./:/app
+      - ./notebooks:/app/notebooks
+    environment:
+      - PYTHONPATH=/app/src
+    command: jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='cryptorl'
+    networks:
+      - cryptorl-network
+    profiles:
+      - dev
+
+volumes:
+  influxdb-data:
+  postgresql-data:
+  redis-data:
+
+networks:
+  cryptorl-network:
+    driver: bridge
