@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from loguru import logger
 import pandas as pd
 
-from .llm_client import LLMClient
+from .llm_factory import LLMFactory
 from .rag_pipeline import RAGPipeline
 from .models import ConfidenceVector, NewsArticle
 from ..config.settings import Settings
@@ -18,7 +18,7 @@ class ConfidenceVectorGenerator:
     
     def __init__(self, settings: Settings, influx_client: InfluxDBClient):
         self.settings = settings
-        self.llm_client = LLMClient(settings)
+        self.llm_client = LLMFactory.create_client(settings)
         self.rag_pipeline = RAGPipeline(settings)
         self.influx = influx_client
         
@@ -43,7 +43,7 @@ class ConfidenceVectorGenerator:
             news_articles = await self.rag_pipeline.search_news(
                 symbol=symbol,
                 date=date,
-                max_results=self.settings.llm.max_news_articles
+                max_results=self.settings.llm_max_news_articles
             )
             
             if not news_articles:

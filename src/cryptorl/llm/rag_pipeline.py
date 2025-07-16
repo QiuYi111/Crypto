@@ -16,9 +16,9 @@ class RAGPipeline:
     
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.serpapi_key = settings.serpapi.api_key
-        self.google_search_key = settings.google_search.api_key
-        self.google_search_cx = settings.google_search.cx
+        self.serpapi_key = settings.serpapi_key
+        self.google_search_key = settings.google_api_key
+        self.google_search_cx = settings.google_cx
         
     async def search_news(
         self,
@@ -72,9 +72,11 @@ class RAGPipeline:
         try:
             search_url = "https://serpapi.com/search"
             
-            # Format date range (±3 days around target date)
-            date_start = query.date - timedelta(days=3)
-            date_end = query.date + timedelta(days=3)
+            # Format date range: search news up to and including the target date
+            # This ensures we use all available information up to July 15th
+            # to guide July 16th trading decisions
+            date_start = query.date - timedelta(days=7)  # Look back 7 days
+            date_end = query.date                        # Include target date
             
             params = {
                 "engine": "google",

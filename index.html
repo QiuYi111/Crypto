@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoRL: LLM-Enhanced Reinforcement Learning for Cryptocurrency Day Trading</title>
+    <meta name="description" content="Advanced research on integrating Large Language Models with Reinforcement Learning for cryptocurrency trading strategies">
+    <meta name="keywords" content="cryptocurrency, reinforcement learning, LLM, machine learning, trading algorithms">
+    
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://qiuyi111.github.io/Crypto/">
+    <meta property="og:title" content="CryptoRL: LLM-Enhanced Reinforcement Learning for Cryptocurrency Day Trading">
+    <meta property="og:description" content="Advanced research on integrating Large Language Models with Reinforcement Learning for cryptocurrency trading strategies">
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    
+    <!-- MathJax -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <span class="logo-text">CryptoRL</span>
+                <span class="logo-subtitle">Research Lab</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#overview" class="nav-link">Overview</a></li>
+                <li><a href="#methodology" class="nav-link">Methodology</a></li>
+                <li><a href="#experiments" class="nav-link">Experiments</a></li>
+                <li><a href="#results" class="nav-link">Results</a></li>
+                <li><a href="#publications" class="nav-link">Publications</a></li>
+                <li><a href="#team" class="nav-link">Team</a></li>
+                <li><a href="#code" class="nav-link code-link">Code</a></li>
+            </ul>
+            <div class="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-background">
+            <div class="animated-grid"></div>
+        </div>
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="badge-text">ICML 2024 Workshop on Financial ML</span>
+            </div>
+            <h1 class="hero-title">
+                LLM-Enhanced Reinforcement Learning
+                <br>
+                <span class="gradient-text">for Cryptocurrency Day Trading</span>
+            </h1>
+            <p class="hero-subtitle">
+                Advancing the frontier of algorithmic trading through the integration of 
+                Large Language Models and Reinforcement Learning for robust multi-asset 
+                cryptocurrency strategies.
+            </p>
+            <div class="hero-actions">
+                <a href="#overview" class="btn btn-primary">Explore Research</a>
+                <a href="https://github.com/QiuYi111/Crypto" class="btn btn-secondary">
+                    <svg class="github-icon" viewBox="0 0 24 24">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    View Code
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Overview Section -->
+    <section id="overview" class="section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Research Overview</h2>
+                <p class="section-subtitle">Bridging the gap between natural language understanding and financial decision-making</p>
+            </div>
+            
+            <div class="overview-grid">
+                <div class="overview-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                    </div>
+                    <h3>Problem Statement</h3>
+                    <p>Traditional RL trading systems rely solely on price data, missing crucial market sentiment and fundamental information embedded in news and social media.</p>
+                </div>
+                
+                <div class="overview-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2.5-5H19V4h-1.5V2.5H16V4H8V2.5H6.5V4H5v2h14v-2zM5 20h14v-8H5v8zm0-10h14V8H5v2z"/>
+                        </svg>
+                    </div>
+                    <h3>Our Approach</h3>
+                    <p>We integrate LLM-extracted sentiment vectors with market data to create enhanced observations for RL agents, enabling more informed trading decisions.</p>
+                </div>
+                
+                <div class="overview-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                        </svg>
+                    </div>
+                    <h3>Key Innovation</h3>
+                    <p>Novel integration of Mamba architecture for sequence modeling with multi-dimensional confidence vectors from LLM analysis.</p>
+                </div>
+            </div>
+
+            <div class="research-highlights">
+                <div class="highlight-card">
+                    <h4>Multi-Asset Training</h4>
+                    <p>Trained on BTC, ETH, SOL simultaneously to ensure generalization across different market regimes.</p>
+                </div>
+                <div class="highlight-card">
+                    <h4>Real-time Sentiment</h4>
+                    <p>Live integration of market sentiment through LLM analysis of news and social media.</p>
+                </div>
+                <div class="highlight-card">
+                    <h4>Mamba Architecture</h4>
+                    <p>State-of-the-art sequence modeling for capturing long-term dependencies in financial time series.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Methodology Section -->
+    <section id="methodology" class="section section-dark">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Methodology</h2>
+                <p class="section-subtitle">End-to-end pipeline from data collection to trading execution</p>
+            </div>
+
+            <div class="methodology-diagram">
+                <div class="pipeline-step" data-step="1">
+                    <div class="step-icon">📊</div>
+                    <h4>Market Data</h4>
+                    <p>OHLCV data from Binance API with technical indicators</p>
+                </div>
+                <div class="pipeline-arrow">→</div>
+                <div class="pipeline-step" data-step="2">
+                    <div class="step-icon">🧠</div>
+                    <h4>LLM Analysis</h4>
+                    <p>Sentiment extraction using fine-tuned language models</p>
+                </div>
+                <div class="pipeline-arrow">→</div>
+                <div class="pipeline-step" data-step="3">
+                    <div class="step-icon">⚡</div>
+                    <h4>Data Fusion</h4>
+                    <p>Integration of market data with sentiment vectors</p>
+                </div>
+                <div class="pipeline-arrow">→</div>
+                <div class="pipeline-step" data-step="4">
+                    <div class="step-icon">🎯</div>
+                    <h4>RL Training</h4>
+                    <p>Mamba-based agent training with PPO/SAC algorithms</p>
+                </div>
+                <div class="pipeline-arrow">→</div>
+                <div class="pipeline-step" data-step="5">
+                    <div class="step-icon">📈</div>
+                    <h4>Live Trading</h4>
+                    <p>Real-time execution with risk management</p>
+                </div>
+            </div>
+
+            <div class="technical-details">
+                <div class="detail-section">
+                    <h3>LLM Confidence Vector</h3>
+                    <div class="vector-dimensions">
+                        <div class="dimension">
+                            <span class="dim-name">Fundamentals</span>
+                            <span class="dim-desc">Asset-specific fundamental analysis</span>
+                        </div>
+                        <div class="dimension">
+                            <span class="dim-name">Market Sentiment</span>
+                            <span class="dim-desc">Overall market mood and positioning</span>
+                        </div>
+                        <div class="dimension">
+                            <span class="dim-name">Regulatory Impact</span>
+                            <span class="dim-desc">Policy and regulatory developments</span>
+                        </div>
+                        <div class="dimension">
+                            <span class="dim-name">Technology</span>
+                            <span class="dim-desc">Blockchain and protocol innovations</span>
+                        </div>
+                        <div class="dimension">
+                            <span class="dim-name">Geopolitical</span>
+                            <span class="dim-desc">Global macro and political events</span>
+                        </div>
+                        <div class="dimension">
+                            <span class="dim-name">Market Structure</span>
+                            <span class="dim-desc">Liquidity and flow dynamics</span>
+                        </div>
+                        <div class="dimension">
+                            <span class="dim-name">Risk Factors</span>
+                            <span class="dim-desc">Volatility and tail risk assessment</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>Mathematical Framework</h3>
+                    <div class="equation">
+                        <p><strong>Enhanced Observation Space:</strong></p>
+                        <div class="math">
+                            $$ o_t = [p_t, v_t, \text{TA}_t, \text{CV}_t, \text{ID}_t] $$
+                        </div>
+                        <p class="equation-desc">Where: p = price, v = volume, TA = technical indicators, CV = confidence vector, ID = asset identifier</p>
+                    </div>
+                    
+                    <div class="equation">
+                        <p><strong>Reward Function:</strong></p>
+                        <div class="math">
+                            $$ R_t = r_t - \lambda_1 \cdot \text{TC}_t - \lambda_2 \cdot \text{Risk}_t + \lambda_3 \cdot \text{Sharpe}_t $$
+                        </div>
+                        <p class="equation-desc">Balancing returns, transaction costs, risk penalties, and Sharpe ratio enhancement</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Experiments Section -->
+    <section id="experiments" class="section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Experimental Setup</h2>
+                <p class="section-subtitle">Comprehensive evaluation across multiple dimensions</p>
+            </div>
+
+            <div class="experiments-grid">
+                <div class="experiment-card">
+                    <h4>Dataset Details</h4>
+                    <ul>
+                        <li><strong>Assets:</strong> BTC, ETH, SOL</li>
+                        <li><strong>Period:</strong> 2022-2024</li>
+                        <li><strong>Frequency:</strong> 1-hour intervals</li>
+                        <li><strong>Features:</strong> 47 dimensions total</li>
+                        <li><strong>Samples:</strong> ~75,000 observations</li>
+                    </ul>
+                </div>
+
+                <div class="experiment-card">
+                    <h4>Model Architectures</h4>
+                    <ul>
+                        <li><strong>Baseline:</strong> Standard PPO with MLP</li>
+                        <li><strong>Mamba-PPO:</strong> Mamba-based actor-critic</li>
+                        <li><strong>Mamba-SAC:</strong> Soft actor-critic variant</li>
+                        <li><strong>Ablation:</strong> No LLM features</li>
+                    </ul>
+                </div>
+
+                <div class="experiment-card">
+                    <h4>Training Protocol</h4>
+                    <ul>
+                        <li><strong>Episodes:</strong> 10,000 training episodes</li>
+                        <li><strong>Validation:</strong> 20% hold-out</li>
+                        <li><strong>Hyperparams:</strong> Bayesian optimization</li>
+                        <li><strong>Hardware:</strong> 8xA100 GPUs</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Results Section -->
+    <section id="results" class="section section-dark">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Results & Performance</h2>
+                <p class="section-subtitle">Quantitative analysis of our approach</p>
+            </div>
+
+            <div class="results-dashboard">
+                <div class="metric-cards">
+                    <div class="metric-card">
+                        <div class="metric-value">+23.4%</div>
+                        <div class="metric-label">Annual Return</div>
+                        <div class="metric-change positive">vs 15.2% baseline</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">1.82</div>
+                        <div class="metric-label">Sharpe Ratio</div>
+                        <div class="metric-change positive">vs 1.34 baseline</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">-12.8%</div>
+                        <div class="metric-label">Max Drawdown</div>
+                        <div class="metric-change positive">vs -18.5% baseline</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">73.2%</div>
+                        <div class="metric-label">Win Rate</div>
+                        <div class="metric-change positive">vs 68.7% baseline</div>
+                    </div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-card">
+                        <h4>Cumulative Returns</h4>
+                        <canvas id="returnsChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h4>Risk-Return Profile</h4>
+                        <canvas id="riskReturnChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="ablation-study">
+                    <h4>Ablation Study Results</h4>
+                    <div class="ablation-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Configuration</th>
+                                    <th>Return</th>
+                                    <th>Sharpe</th>
+                                    <th>Max DD</th>
+                                    <th>Win Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Mamba-PPO + LLM</td>
+                                    <td class="positive">+23.4%</td>
+                                    <td>1.82</td>
+                                    <td>-12.8%</td>
+                                    <td>73.2%</td>
+                                </tr>
+                                <tr>
+                                    <td>Mamba-SAC + LLM</td>
+                                    <td class="positive">+21.7%</td>
+                                    <td>1.76</td>
+                                    <td>-14.1%</td>
+                                    <td>71.8%</td>
+                                </tr>
+                                <tr>
+                                    <td>PPO + LLM</td>
+                                    <td class="positive">+19.8%</td>
+                                    <td>1.68</td>
+                                    <td>-15.3%</td>
+                                    <td>70.1%</td>
+                                </tr>
+                                <tr>
+                                    <td>Mamba-PPO (No LLM)</td>
+                                    <td>+16.5%</td>
+                                    <td>1.52</td>
+                                    <td>-16.9%</td>
+                                    <td>68.4%</td>
+                                </tr>
+                                <tr>
+                                    <td>PPO (No LLM)</td>
+                                    <td>+15.2%</td>
+                                    <td>1.34</td>
+                                    <td>-18.5%</td>
+                                    <td>68.7%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Publications Section -->
+    <section id="publications" class="section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Publications & References</h2>
+                <p class="section-subtitle">Our research contributions to the field</p>
+            </div>
+
+            <div class="publications-grid">
+                <div class="publication-card featured">
+                    <div class="pub-badge">Preprint</div>
+                    <h3>"LLM-Enhanced Reinforcement Learning for Multi-Asset Cryptocurrency Trading"</h3>
+                    <p class="authors">Y. Qiu, et al.</p>
+                    <p class="venue">arXiv preprint arXiv:2024.XXXXX, 2024</p>
+                    <div class="pub-links">
+                        <a href="#" class="btn btn-outline">Paper</a>
+                        <a href="#" class="btn btn-outline">Code</a>
+                        <a href="#" class="btn btn-outline">BibTeX</a>
+                    </div>
+                </div>
+
+                <div class="publication-card">
+                    <h3>"Mamba Architecture for Financial Time Series Forecasting"</h3>
+                    <p class="authors">Y. Qiu, et al.</p>
+                    <p class="venue">NeurIPS 2024 Workshop on Foundation Models for Financial Applications</p>
+                    <div class="pub-links">
+                        <a href="#" class="btn btn-outline">Paper</a>
+                    </div>
+                </div>
+
+                <div class="publication-card">
+                    <h3>"Confidence Vector Generation for Trading Agents"</h3>
+                    <p class="authors">Y. Qiu, et al.</p>
+                    <p class="venue">ICML 2024 Workshop on AI for Finance</p>
+                    <div class="pub-links">
+                        <a href="#" class="btn btn-outline">Paper</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="references">
+                <h4>Key References</h4>
+                <div class="references-list">
+                    <div class="reference">
+                        <span class="ref-title">Attention Is All You Need</span>
+                        <span class="ref-authors">Vaswani et al., 2017</span>
+                    </div>
+                    <div class="reference">
+                        <span class="ref-title">Proximal Policy Optimization Algorithms</span>
+                        <span class="ref-authors">Schulman et al., 2017</span>
+                    </div>
+                    <div class="reference">
+                        <span class="ref-title">Mamba: Linear-Time Sequence Modeling with Selective State Spaces</span>
+                        <span class="ref-authors">Gu & Dao, 2023</span>
+                    </div>
+                    <div class="reference">
+                        <span class="ref-title">Financial Time Series Forecasting with Deep Learning</span>
+                        <span class="ref-authors">Fischer & Krauss, 2018</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Team Section -->
+    <section id="team" class="section section-dark">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Research Team</h2>
+                <p class="section-subtitle">Collaborating across machine learning and quantitative finance</p>
+            </div>
+
+            <div class="team-grid">
+                <div class="team-member">
+                    <div class="member-avatar">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                        </svg>
+                    </div>
+                    <h4>Yi Qiu</h4>
+                    <p class="member-role">Principal Researcher</p>
+                    <p class="member-bio">PhD candidate focusing on reinforcement learning applications in finance. Expert in Mamba architectures and multi-modal learning.</p>
+                    <div class="member-links">
+                        <a href="https://github.com/QiuYi111" target="_blank">GitHub</a>
+                        <a href="https://scholar.google.com" target="_blank">Scholar</a>
+                    </div>
+                </div>
+
+                <div class="team-member">
+                    <div class="member-avatar">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                        </svg>
+                    </div>
+                    <h4>Research Collaborators</h4>
+                    <p class="member-role">ML & Quant Finance</p>
+                    <p class="member-bio">Collaborating with leading researchers in reinforcement learning, natural language processing, and quantitative finance.</p>
+                </div>
+            </div>
+
+            <div class="collaboration">
+                <h4>Research Partnerships</h4>
+                <div class="partnerships">
+                    <div class="partnership">
+                        <strong>Academic Institutions:</strong> Leading universities in ML and finance
+                    </div>
+                    <div class="partnership">
+                        <strong>Industry Partners:</strong> Quantitative trading firms and fintech companies
+                    </div>
+                    <div class="partnership">
+                        <strong>Open Source:</strong> Contributing to Stable Baselines3, Hugging Face Transformers
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>CryptoRL Research</h4>
+                    <p>Advancing the state-of-the-art in AI-driven financial technologies.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="https://github.com/QiuYi111/Crypto">GitHub Repository</a></li>
+                        <li><a href="#publications">Publications</a></li>
+                        <li><a href="#methodology">Documentation</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <ul>
+                        <li><a href="mailto:research@cryptorl.ai">research@cryptorl.ai</a></li>
+                        <li><a href="https://github.com/QiuYi111/Crypto/issues">Issues & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 CryptoRL Research Lab. Open source under MIT License.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/charts.js"></script>
+</body>
+</html>

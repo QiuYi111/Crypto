@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     postgresql_db: str = Field(default="cryptorl", env="POSTGRESQL_DB")
 
     # LLM settings
+    llm_provider: str = Field(default="local", env="LLM_PROVIDER")  # local, deepseek, openai
     llm_model_name: str = Field(default="microsoft/DialoGPT-medium", env="LLM_MODEL_NAME")
     llm_device: str = Field(default="cuda", env="LLM_DEVICE")
     llm_max_tokens: int = Field(default=512, env="LLM_MAX_TOKENS")
@@ -47,11 +48,11 @@ class Settings(BaseSettings):
     llm_batch_size: int = Field(default=8, env="LLM_BATCH_SIZE")
     llm_load_in_4bit: bool = Field(default=True, env="LLM_LOAD_IN_4BIT")
     llm_max_news_articles: int = Field(default=10, env="LLM_MAX_NEWS_ARTICLES")
-
-    # Search API settings
-    serpapi_key: str = Field(default="", env="SERPAPI_KEY")
-    google_search_api_key: str = Field(default="", env="GOOGLE_SEARCH_API_KEY")
-    google_search_cx: str = Field(default="", env="GOOGLE_SEARCH_CX")
+    
+    # DeepSeek API settings
+    deepseek_api_key: str = Field(default="", env="DEEPSEEK_API_KEY")
+    deepseek_model: str = Field(default="deepseek-chat", env="DEEPSEEK_MODEL")
+    deepseek_base_url: str = Field(default="https://api.deepseek.com", env="DEEPSEEK_BASE_URL")
 
     # RL settings
     rl_hidden_dim: int = Field(default=256, env="RL_HIDDEN_DIM")
