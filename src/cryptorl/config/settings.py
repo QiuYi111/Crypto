@@ -47,11 +47,22 @@ class Settings(BaseSettings):
     llm_batch_size: int = Field(default=8, env="LLM_BATCH_SIZE")
     llm_load_in_4bit: bool = Field(default=True, env="LLM_LOAD_IN_4BIT")
     llm_max_news_articles: int = Field(default=10, env="LLM_MAX_NEWS_ARTICLES")
+    
+    # LLM provider settings
+    llm_provider: str = Field(default="local", env="LLM_PROVIDER")
+    deepseek_api_key: str = Field(default="", env="DEEPSEEK_API_KEY")
+    deepseek_model: str = Field(default="deepseek-chat", env="DEEPSEEK_MODEL")
+    deepseek_base_url: str = Field(default="https://api.deepseek.com", env="DEEPSEEK_BASE_URL")
+    google_api_key: str = Field(default="", env="GOOGLE_API_KEY")
+    google_cx: str = Field(default="", env="GOOGLE_CX")
 
     # Search API settings
     serpapi_key: str = Field(default="", env="SERPAPI_KEY")
     google_search_api_key: str = Field(default="", env="GOOGLE_SEARCH_API_KEY")
     google_search_cx: str = Field(default="", env="GOOGLE_SEARCH_CX")
+    
+    # China-compatible search APIs
+    baidu_api_key: str = Field(default="", env="BAIDU_API_KEY")
 
     # RL settings
     rl_hidden_dim: int = Field(default=256, env="RL_HIDDEN_DIM")
@@ -66,11 +77,6 @@ class Settings(BaseSettings):
     rl_replay_buffer_size: int = Field(default=100000, env="RL_REPLAY_BUFFER_SIZE")
     rl_learning_rate: float = Field(default=3e-4, env="RL_LEARNING_RATE")
     rl_gamma: float = Field(default=0.99, env="RL_GAMMA")
-
-    # Search API settings
-    serpapi_key: str = Field(default="", env="SERPAPI_KEY")
-    google_api_key: str = Field(default="", env="GOOGLE_API_KEY")
-    google_cx: str = Field(default="", env="GOOGLE_CX")
 
     # Redis settings
     redis_url: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")

@@ -10,13 +10,24 @@ from .llm_client import LLMClient
 from .rag_pipeline import RAGPipeline
 from .models import ConfidenceVector, NewsArticle
 from ..config.settings import Settings
-from ..data.influxdb_client import InfluxDBClient
+# Mock InfluxDB client for testing
+class MockInfluxDBClient:
+    def __init__(self, settings):
+        self.settings = settings
+    
+    async def get_price_data(self, symbol, date):
+        # Return mock data
+        import pandas as pd
+        return pd.DataFrame({
+            'close': [45000.0, 45500.0, 45250.0],
+            'volume': [25000000000, 26000000000, 25500000000]
+        })
 
 
 class ConfidenceVectorGenerator:
     """Main system for generating confidence vectors using LLM + RAG pipeline."""
     
-    def __init__(self, settings: Settings, influx_client: InfluxDBClient):
+    def __init__(self, settings: Settings, influx_client=None):
         self.settings = settings
         self.llm_client = LLMClient(settings)
         self.rag_pipeline = RAGPipeline(settings)
