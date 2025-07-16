@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     google_search_api_key: str = Field(default="", env="GOOGLE_SEARCH_API_KEY")
     google_search_cx: str = Field(default="", env="GOOGLE_SEARCH_CX")
     
+    # LangSearch API settings
+    langsearch_api_key: str = Field(default="", env="LANGSEARCH_API_KEY")
+    
     # China-compatible search APIs
     baidu_api_key: str = Field(default="", env="BAIDU_API_KEY")
 

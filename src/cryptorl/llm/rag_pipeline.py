@@ -13,6 +13,7 @@ except ImportError:
 
 from .models import NewsArticle, SearchQuery
 from ..config.settings import Settings
+from .langsearch_client import LangSearchClient
 
 
 class RAGPipeline:
@@ -20,6 +21,7 @@ class RAGPipeline:
     
     def __init__(self, settings: Settings):
         self.settings = settings
+        self.langsearch_client = LangSearchClient(settings)
         self.serpapi_key = settings.serpapi_key
         self.google_search_key = settings.google_search_api_key
         self.google_search_cx = settings.google_search_cx
@@ -41,18 +43,30 @@ class RAGPipeline:
             max_results=max_results
         )
         
-        # Try multiple search sources in priority order
+        # Try LangSearch as primary source
         articles = []
         
-        # SerpAPI search (primary choice)
-        if self.serpapi_key:
+        # LangSearch API (primary choice with semantic reranking)
+        if self.settings.langsearch_api_key:
+            langsearch_articles = await self.langsearch_client.search_and_rerank(
+                symbol=symbol,
+                date=date,
+                keywords=keywords or [],
+                max_results=max_results
+            )
+            articles.extend(langsearch_articles)
+            if langsearch_articles:
+                logger.info(f"Found {len(langsearch_articles)} articles via LangSearch")
+        
+        # Fallback to SerpAPI if LangSearch fails
+        if not articles and self.serpapi_key:
             serp_articles = await self._search_serpapi(query)
             articles.extend(serp_articles)
             if serp_articles:
                 logger.info(f"Found {len(serp_articles)} articles via SerpAPI")
         
-        # Google Custom Search (secondary choice)
-        if self.google_search_key and self.google_search_cx and not articles:
+        # Fallback to Google Custom Search
+        if not articles and self.google_search_key and self.google_search_cx:
             google_articles = await self._search_google(query)
             articles.extend(google_articles)
             if google_articles:
@@ -66,7 +80,7 @@ class RAGPipeline:
                 logger.info(f"Found {len(duckduckgo_articles)} articles via DuckDuckGo")
         
         # Baidu Search (China-specific final fallback)
-        if self.baidu_api_key and not articles:
+        if not articles and self.baidu_api_key:
             baidu_articles = await self._search_baidu(query)
             articles.extend(baidu_articles)
             if baidu_articles:
@@ -458,8 +472,13 @@ class RAGPipeline:
             test_date = datetime.utcnow() - timedelta(days=7)
             test_articles = await self.search_news("BTCUSDT", test_date, max_results=1)
             
+            # Check LangSearch health
+            langsearch_health = await self.langsearch_client.health_check()
+            
             return {
                 "status": "healthy",
+                "langsearch_enabled": bool(self.settings.langsearch_api_key),
+                "langsearch_health": langsearch_health,
                 "duckduckgo_enabled": True,
                 "baidu_search_enabled": bool(self.baidu_api_key),
                 "serpapi_enabled": bool(self.serpapi_key),
