@@ -2,10 +2,11 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import httpx
 from loguru import logger
 import json
+import time
 
 from .models import NewsArticle, SearchQuery
 from ..config.settings import Settings
@@ -19,12 +20,68 @@ class LangSearchClient:
         self.api_key = settings.langsearch_api_key
         self.base_url = "https://api.langsearch.com/v1"
         self._initialized = bool(self.api_key)
+        self._rate_limiter = asyncio.Semaphore(5)  # Max 5 concurrent requests
+        self._request_times = []
+        self._min_request_interval = 0.2  # 200ms between requests
+        self._last_request_time = 0
         
     async def initialize(self):
         """Initialize the LangSearch API client."""
         if not self.api_key:
             raise ValueError("LangSearch API key not configured")
         logger.info("Initialized LangSearch API client")
+    
+    async def _rate_limit(self):
+        """Implement rate limiting to prevent API throttling."""
+        async with self._rate_limiter:
+            now = time.time()
+            time_since_last = now - self._last_request_time
+            
+            if time_since_last < self._min_request_interval:
+                await asyncio.sleep(self._min_request_interval - time_since_last)
+            
+            self._last_request_time = time.time()
+    
+    async def _make_request(self, endpoint: str, payload: Dict[str, Any], max_retries: int = 3) -> Dict[str, Any]:
+        """Make HTTP request with retry logic and rate limiting."""
+        await self._rate_limit()
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        for attempt in range(max_retries + 1):
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(
+                        f"{self.base_url}/{endpoint}",
+                        headers=headers,
+                        json=payload
+                    )
+                    
+                    if response.status_code == 429:
+                        retry_after = int(response.headers.get('retry-after', 60))
+                        logger.warning(f"Rate limited, waiting {retry_after}s before retry {attempt + 1}")
+                        await asyncio.sleep(retry_after)
+                        continue
+                    
+                    response.raise_for_status()
+                    return response.json()
+                    
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 429 and attempt < max_retries:
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                    continue
+                logger.error(f"HTTP error in LangSearch API: {e}")
+                raise
+            except Exception as e:
+                logger.error(f"Error in LangSearch API request: {e}")
+                if attempt == max_retries:
+                    raise
+                await asyncio.sleep(2 ** attempt)
+        
+        raise Exception("Max retries exceeded for LangSearch API")
     
     async def search_news(
         self,
@@ -51,11 +108,6 @@ class LangSearchClient:
         search_query = query.to_search_string()
         
         try:
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-            
             payload = {
                 "query": search_query,
                 "freshness": freshness,
@@ -63,32 +115,24 @@ class LangSearchClient:
                 "count": max_results
             }
             
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{self.base_url}/web-search",
-                    headers=headers,
-                    json=payload
-                )
-                response.raise_for_status()
-                
-                data = response.json()
-                
-                articles = []
-                if "data" in data and "webPages" in data["data"] and "value" in data["data"]["webPages"]:
-                    for result in data["data"]["webPages"]["value"]:
-                        article = NewsArticle(
-                            title=result.get("name", ""),
-                            content=result.get("summary", result.get("snippet", "")),
-                            source=self._extract_source_from_url(result.get("url", "")),
-                            published_date=self._parse_date(result.get("datePublished")),
-                            url=result.get("url", ""),
-                            relevance_score=self._calculate_relevance_score(result, query)
-                        )
-                        articles.append(article)
-                
-                logger.info(f"Found {len(articles)} articles via LangSearch")
-                return articles
-                
+            data = await self._make_request("web-search", payload)
+            
+            articles = []
+            if "data" in data and "webPages" in data["data"] and "value" in data["data"]["webPages"]:
+                for result in data["data"]["webPages"]["value"]:
+                    article = NewsArticle(
+                        title=result.get("name", ""),
+                        content=result.get("summary", result.get("snippet", "")),
+                        source=self._extract_source_from_url(result.get("url", "")),
+                        published_date=self._parse_date(result.get("datePublished")),
+                        url=result.get("url", ""),
+                        relevance_score=self._calculate_relevance_score(result, query)
+                    )
+                    articles.append(article)
+            
+            logger.info(f"Found {len(articles)} articles via LangSearch")
+            return articles
+            
         except Exception as e:
             logger.error(f"LangSearch API error: {e}")
             return []
@@ -109,11 +153,6 @@ class LangSearchClient:
             return []
         
         try:
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-            
             # Prepare documents for reranking
             documents = []
             for article in articles:
@@ -128,31 +167,23 @@ class LangSearchClient:
                 "return_documents": return_documents
             }
             
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{self.base_url}/rerank",
-                    headers=headers,
-                    json=payload
-                )
-                response.raise_for_status()
-                
-                data = response.json()
-                
-                # Create reranked articles
-                reranked_articles = []
-                if "results" in data:
-                    for result in data["results"]:
-                        index = result.get("index", 0)
-                        relevance_score = result.get("relevance_score", 0.5)
-                        
-                        if 0 <= index < len(articles):
-                            article = articles[index]
-                            article.relevance_score = relevance_score
-                            reranked_articles.append(article)
-                
-                logger.info(f"Reranked {len(reranked_articles)} articles")
-                return reranked_articles
-                
+            data = await self._make_request("rerank", payload)
+            
+            # Create reranked articles
+            reranked_articles = []
+            if "results" in data:
+                for result in data["results"]:
+                    index = result.get("index", 0)
+                    relevance_score = result.get("relevance_score", 0.5)
+                    
+                    if 0 <= index < len(articles):
+                        article = articles[index]
+                        article.relevance_score = relevance_score
+                        reranked_articles.append(article)
+            
+            logger.info(f"Reranked {len(reranked_articles)} articles")
+            return reranked_articles
+            
         except Exception as e:
             logger.error(f"LangSearch rerank error: {e}")
             return articles  # Return original articles if reranking fails
@@ -241,6 +272,152 @@ class LangSearchClient:
         
         return min(score, 1.0)
     
+    async def search_domain_specific(
+        self,
+        symbol: str,
+        date: datetime,
+        domain: str,
+        max_results: int = 5
+    ) -> List[NewsArticle]:
+        """Search for news specific to a confidence vector domain."""
+        
+        domain_queries = {
+            "fundamentals": f"{symbol.replace('USDT', '')} cryptocurrency project fundamentals technology adoption partnerships",
+            "industry_condition": "cryptocurrency blockchain industry market trends sector analysis",
+            "geopolitics": "global geopolitics cryptocurrency bitcoin regulation international relations",
+            "macroeconomics": "global economy macroeconomic indicators federal reserve inflation cryptocurrency impact",
+            "technical_sentiment": f"{symbol.replace('USDT', '')} technical analysis market sentiment trading patterns",
+            "regulatory_impact": "cryptocurrency regulation SEC CFTC government policy bitcoin ETF approval",
+            "innovation_impact": "blockchain innovation cryptocurrency technology development DeFi NFT Web3"
+        }
+        
+        if domain not in domain_queries:
+            logger.warning(f"Unknown domain: {domain}")
+            return []
+        
+        query = domain_queries[domain]
+        
+        try:
+            payload = {
+                "query": query,
+                "freshness": "oneWeek",
+                "summary": True,
+                "count": max_results
+            }
+            
+            data = await self._make_request("web-search", payload)
+            
+            articles = []
+            if "data" in data and "webPages" in data["data"] and "value" in data["data"]["webPages"]:
+                for result in data["data"]["webPages"]["value"]:
+                    article = NewsArticle(
+                        title=result.get("name", ""),
+                        content=result.get("summary", result.get("snippet", "")),
+                        source=self._extract_source_from_url(result.get("url", "")),
+                        published_date=self._parse_date(result.get("datePublished")),
+                        url=result.get("url", ""),
+                        relevance_score=0.5,
+                        tags=[domain]
+                    )
+                    articles.append(article)
+            
+            logger.info(f"Found {len(articles)} articles for domain: {domain}")
+            return articles
+            
+        except Exception as e:
+            logger.error(f"Error searching domain {domain}: {e}")
+            return []
+    
+    async def search_all_domains(
+        self,
+        symbol: str,
+        date: datetime,
+        max_results_per_domain: int = 3
+    ) -> Dict[str, List[NewsArticle]]:
+        """Search for news across all 7 confidence vector domains."""
+        
+        domains = [
+            "fundamentals", "industry_condition", "geopolitics",
+            "macroeconomics", "technical_sentiment", "regulatory_impact", "innovation_impact"
+        ]
+        
+        results = {}
+        
+        # Search each domain sequentially to avoid overwhelming the API
+        for domain in domains:
+            try:
+                articles = await self.search_domain_specific(
+                    symbol=symbol,
+                    date=date,
+                    domain=domain,
+                    max_results=max_results_per_domain
+                )
+                results[domain] = articles
+                
+                # Add small delay between domain searches
+                await asyncio.sleep(0.5)
+                
+            except Exception as e:
+                logger.error(f"Failed to search domain {domain}: {e}")
+                results[domain] = []
+        
+        return results
+    
+    async def search_global_context(
+        self,
+        date: datetime,
+        max_results: int = 5
+    ) -> List[NewsArticle]:
+        """Search for global economic and political news affecting crypto."""
+        
+        global_queries = [
+            "global economy cryptocurrency impact",
+            "federal reserve bitcoin price federal interest rates",
+            "china cryptocurrency regulation bitcoin mining",
+            "european union crypto regulation MiCA",
+            "japan cryptocurrency policy digital yen",
+            "sec bitcoin ETF approval cryptocurrency regulation",
+            "imf world bank cryptocurrency digital currency",
+            "biden administration cryptocurrency policy executive order",
+            "trump cryptocurrency bitcoin strategic reserve",
+            "brics cryptocurrency bitcoin adoption"
+        ]
+        
+        all_articles = []
+        
+        for query in global_queries[:max_results]:
+            try:
+                payload = {
+                    "query": query,
+                    "freshness": "oneWeek",
+                    "summary": True,
+                    "count": 2
+                }
+                
+                data = await self._make_request("web-search", payload)
+                
+                if "data" in data and "webPages" in data["data"] and "value" in data["data"]["webPages"]:
+                    for result in data["data"]["webPages"]["value"]:
+                        article = NewsArticle(
+                            title=result.get("name", ""),
+                            content=result.get("summary", result.get("snippet", "")),
+                            source=self._extract_source_from_url(result.get("url", "")),
+                            published_date=self._parse_date(result.get("datePublished")),
+                            url=result.get("url", ""),
+                            relevance_score=0.7,
+                            tags=["global_context"]
+                        )
+                        all_articles.append(article)
+                
+                # Delay between global searches
+                await asyncio.sleep(0.3)
+                
+            except Exception as e:
+                logger.error(f"Error in global context search: {e}")
+                continue
+        
+        return all_articles
+    
     async def health_check(self) -> Dict[str, Any]:
         """Check LangSearch API client health."""
         try:
@@ -251,24 +428,12 @@ class LangSearchClient:
                 }
             
             # Test with a simple search
-            test_query = "Bitcoin crypto news"
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-            
             payload = {
-                "query": test_query,
+                "query": "Bitcoin crypto news",
                 "count": 1
             }
             
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(
-                    f"{self.base_url}/web-search",
-                    headers=headers,
-                    json=payload
-                )
-                response.raise_for_status()
+            await self._make_request("web-search", payload)
             
             return {
                 "status": "healthy",

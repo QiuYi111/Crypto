@@ -80,14 +80,7 @@ class ConfidenceVectorGenerator:
                 vector=llm_response.confidence_vector,
                 news_sources=[article.source for article in news_articles],
                 confidence_score=0.8,  # Could be calculated from LLM confidence
-                reasoning=llm_response.reasoning,
-                fundamentals=llm_response.confidence_vector[0],
-                industry_condition=llm_response.confidence_vector[1],
-                geopolitics=llm_response.confidence_vector[2],
-                macroeconomics=llm_response.confidence_vector[3],
-                technical_sentiment=llm_response.confidence_vector[4],
-                regulatory_impact=llm_response.confidence_vector[5],
-                innovation_impact=llm_response.confidence_vector[6]
+                reasoning=llm_response.reasoning
             )
             
             # Cache the result

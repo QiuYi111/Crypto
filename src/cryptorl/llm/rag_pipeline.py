@@ -32,64 +32,96 @@ class RAGPipeline:
         symbol: str,
         date: datetime,
         keywords: List[str] = None,
-        max_results: int = 10
+        max_results: int = 10,
+        use_domain_search: bool = True
     ) -> List[NewsArticle]:
         """Search for news articles about a symbol on a specific date."""
         
-        query = SearchQuery(
-            symbol=symbol,
-            date=date,
-            keywords=keywords or [],
-            max_results=max_results
-        )
+        all_articles = []
         
-        # Try LangSearch as primary source
-        articles = []
+        # Use new domain-specific search approach
+        if use_domain_search and self.settings.langsearch_api_key:
+            logger.info(f"Using domain-specific search for {symbol} on {date}")
+            
+            # Search across all 7 confidence vector domains
+            domain_results = await self.langsearch_client.search_all_domains(
+                symbol=symbol,
+                date=date,
+                max_results_per_domain=max(2, max_results // 4)  # Distribute results across domains
+            )
+            
+            # Collect all articles from domains
+            for domain, articles in domain_results.items():
+                for article in articles:
+                    article.tags.append(domain)
+                all_articles.extend(articles)
+            
+            # Search for global context
+            global_articles = await self.langsearch_client.search_global_context(
+                date=date,
+                max_results=max(3, max_results // 3)
+            )
+            all_articles.extend(global_articles)
+            
+            logger.info(f"Found {len(all_articles)} articles via domain-specific search")
         
-        # LangSearch API (primary choice with semantic reranking)
-        if self.settings.langsearch_api_key:
-            langsearch_articles = await self.langsearch_client.search_and_rerank(
+        # Fallback to traditional search if no results or domain search disabled
+        if not all_articles:
+            query = SearchQuery(
                 symbol=symbol,
                 date=date,
                 keywords=keywords or [],
                 max_results=max_results
             )
-            articles.extend(langsearch_articles)
-            if langsearch_articles:
-                logger.info(f"Found {len(langsearch_articles)} articles via LangSearch")
-        
-        # Fallback to SerpAPI if LangSearch fails
-        if not articles and self.serpapi_key:
-            serp_articles = await self._search_serpapi(query)
-            articles.extend(serp_articles)
-            if serp_articles:
-                logger.info(f"Found {len(serp_articles)} articles via SerpAPI")
-        
-        # Fallback to Google Custom Search
-        if not articles and self.google_search_key and self.google_search_cx:
-            google_articles = await self._search_google(query)
-            articles.extend(google_articles)
-            if google_articles:
-                logger.info(f"Found {len(google_articles)} articles via Google Search")
-        
-        # DuckDuckGo search (China-compatible fallback)
-        if not articles:
-            duckduckgo_articles = await self._search_duckduckgo(query)
-            articles.extend(duckduckgo_articles)
-            if duckduckgo_articles:
-                logger.info(f"Found {len(duckduckgo_articles)} articles via DuckDuckGo")
-        
-        # Baidu Search (China-specific final fallback)
-        if not articles and self.baidu_api_key:
-            baidu_articles = await self._search_baidu(query)
-            articles.extend(baidu_articles)
-            if baidu_articles:
-                logger.info(f"Found {len(baidu_articles)} articles via Baidu")
+            
+            articles = []
+            
+            # LangSearch API (traditional search)
+            if self.settings.langsearch_api_key:
+                langsearch_articles = await self.langsearch_client.search_and_rerank(
+                    symbol=symbol,
+                    date=date,
+                    keywords=keywords or [],
+                    max_results=max_results
+                )
+                articles.extend(langsearch_articles)
+                if langsearch_articles:
+                    logger.info(f"Found {len(langsearch_articles)} articles via LangSearch")
+            
+            # Fallback to SerpAPI if LangSearch fails
+            if not articles and self.serpapi_key:
+                serp_articles = await self._search_serpapi(query)
+                articles.extend(serp_articles)
+                if serp_articles:
+                    logger.info(f"Found {len(serp_articles)} articles via SerpAPI")
+            
+            # Fallback to Google Custom Search
+            if not articles and self.google_search_key and self.google_search_cx:
+                google_articles = await self._search_google(query)
+                articles.extend(google_articles)
+                if google_articles:
+                    logger.info(f"Found {len(google_articles)} articles via Google Search")
+            
+            # DuckDuckGo search (China-compatible fallback)
+            if not articles:
+                duckduckgo_articles = await self._search_duckduckgo(query)
+                articles.extend(duckduckgo_articles)
+                if duckduckgo_articles:
+                    logger.info(f"Found {len(duckduckgo_articles)} articles via DuckDuckGo")
+            
+            # Baidu Search (China-specific final fallback)
+            if not articles and self.baidu_api_key:
+                baidu_articles = await self._search_baidu(query)
+                articles.extend(baidu_articles)
+                if baidu_articles:
+                    logger.info(f"Found {len(baidu_articles)} articles via Baidu")
+            
+            all_articles = articles
         
         # Deduplicate by URL
         seen_urls = set()
         unique_articles = []
-        for article in articles:
+        for article in all_articles:
             if article.url and article.url not in seen_urls:
                 seen_urls.add(article.url)
                 unique_articles.append(article)
